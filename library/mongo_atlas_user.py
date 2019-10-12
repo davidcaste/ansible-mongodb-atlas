@@ -18,13 +18,13 @@ requirements:
     - MongoDB Atlas account access
     - MongoDB Atlas API key
 options:
-    atlas_username:
+    atlas_api_public_key:
         description:
-            - The username for the MongoDB Atlas account
+            - The API public key required to access MongoDB Atlas's REST API
         required: true
-    atlas_api_key:
+    atlas_api_private_key:
         description:
-            - The API required to access MongoDB Atlas's REST API
+            - The API private key required to access MongoDB Atlas's REST API
         required: true
     atlas_group_id:
         description:
@@ -69,8 +69,8 @@ options:
 EXAMPLES = '''
     - name: create ansible user in atlas
       mongo_atlas_user:
-        atlas_username: 'jessedearing@invisionapp.com'
-        atlas_api_key: '12345-678-90abcd-ef1234'
+        atlas_api_public_key: 'abcdefgh'
+        atlas_api_private_key: '12345-678-90abcd-ef1234'
         atlas_group_id: 'abcabcabc123123123'
         user: my_new_service
         state: present
@@ -104,7 +104,7 @@ def map_roles(role):
         return role
 
 
-def get_user(atlas_group_id, atlas_username, atlas_api_key, user):
+def get_user(atlas_group_id, atlas_api_public_key, atlas_api_private_key, user):
     """
     Calls GET /api/atlas/v1.0/groups/GROUPID/databaseUsers/admin/USERNAME
 
@@ -114,16 +114,16 @@ def get_user(atlas_group_id, atlas_username, atlas_api_key, user):
     """
     url = "https://cloud.mongodb.com/api/atlas/v1.0/groups/" + atlas_group_id \
         + "/databaseUsers/admin/" + user
-    response = requests.get(url, auth=HTTPDigestAuth(atlas_username,
-                            atlas_api_key))
+    response = requests.get(url, auth=HTTPDigestAuth(atlas_api_public_key,
+                            atlas_api_private_key))
     user_json = response.json()
     response.close()
     user_json['url'] = url
     return user_json
 
 
-def create_user(atlas_group_id, atlas_username, atlas_api_key, user, roles,
-                password):
+def create_user(atlas_group_id, atlas_api_public_key, atlas_api_private_key,
+                user, roles, password):
     roles_with_dbs = list(map(map_roles, roles))
     url = "https://cloud.mongodb.com/api/atlas/v1.0/groups/" + atlas_group_id \
         + "/databaseUsers"
@@ -133,26 +133,27 @@ def create_user(atlas_group_id, atlas_username, atlas_api_key, user, roles,
                 roles=roles_with_dbs,
                 password=password)
     response = requests.post(url, json=user,
-                             auth=HTTPDigestAuth(atlas_username,
-                                                 atlas_api_key))
+                             auth=HTTPDigestAuth(atlas_api_public_key,
+                                                 atlas_api_private_key))
     post_json = response.json()
     response.close()
     post_json['url'] = url
     return post_json
 
 
-def delete_user(atlas_group_id, atlas_username, atlas_api_key, user):
+def delete_user(atlas_group_id, atlas_api_public_key, atlas_api_private_key,
+                user):
     url = "https://cloud.mongodb.com/api/atlas/v1.0/groups/" + atlas_group_id \
         + "/databaseUsers/admin/"+user
-    response = requests.delete(url, auth=HTTPDigestAuth(atlas_username,
-                                                        atlas_api_key))
+    response = requests.delete(url, auth=HTTPDigestAuth(atlas_api_public_key,
+                                                        atlas_api_private_key))
     delete_json = response.json()
     response.close()
     delete_json['url'] = url
     return delete_json
 
 
-def sync_user(atlas_group_id, atlas_username, atlas_api_key, user,
+def sync_user(atlas_group_id, atlas_api_public_key, atlas_api_private_key, user,
               http_response, roles, password):
     roles_with_dbs = list(map(map_roles, roles))
     if http_response['roles'] == roles_with_dbs and password is None:
@@ -170,8 +171,8 @@ def sync_user(atlas_group_id, atlas_username, atlas_api_key, user,
         + "/databaseUsers/admin/"+user
 
     response = requests.patch(url, json=payload, auth=HTTPDigestAuth(
-                              atlas_username,
-                              atlas_api_key))
+                              atlas_api_public_key,
+                              atlas_api_private_key))
 
     patch_json = response.json()
     patch_json['changed'] = True
@@ -184,8 +185,9 @@ def main():
     """Load the option and route the methods to call"""
     module = AnsibleModule(
             argument_spec=dict(
-                atlas_username=dict(required=True, type='str'),
-                atlas_api_key=dict(required=True, type='str', no_log=True),
+                atlas_api_public_key=dict(required=True, type='str'),
+                atlas_api_private_key=dict(required=True, type='str',
+                                           no_log=True),
                 atlas_group_id=dict(required=True, type='str'),
                 user=dict(required=True, type='str', no_log=False),
                 password=dict(required=False, type='str', no_log=True),
@@ -198,16 +200,16 @@ def main():
             )
     user = module.params['user']
     password = module.params['password']
-    atlas_username = module.params['atlas_username']
-    atlas_api_key = module.params['atlas_api_key']
+    atlas_api_public_key = module.params['atlas_api_public_key']
+    atlas_api_private_key = module.params['atlas_api_private_key']
     atlas_group_id = module.params['atlas_group_id']
     state = module.params['state']
     update_password = module.params['update_password']
     roles = module.params['roles']
 
     # Do an initial query for the user so we can inspect if it needs to change
-    subject_response = get_user(atlas_group_id, atlas_username, atlas_api_key,
-                                user)
+    subject_response = get_user(atlas_group_id, atlas_api_public_key,
+                                atlas_api_private_key, user)
 
     if subject_response.get('error') is None:
         subject_state = 'present'
@@ -221,8 +223,8 @@ def main():
     # The user is not there so we must create it
     if state == 'present' and subject_state == 'absent':
         response = create_user(atlas_group_id=atlas_group_id,
-                               atlas_username=atlas_username,
-                               atlas_api_key=atlas_api_key,
+                               atlas_api_public_key=atlas_api_public_key,
+                               atlas_api_private_key=atlas_api_private_key,
                                user=user, roles=roles, password=password)
         if response.get('error') is None:
             module.exit_json(changed=True, user=response)
@@ -237,8 +239,8 @@ def main():
 
     # The user is there and we don't wait it to be. Delete it.
     if state == 'absent' and subject_state == 'present':
-        response = delete_user(atlas_group_id, atlas_username, atlas_api_key,
-                               user)
+        response = delete_user(atlas_group_id, atlas_api_public_key,
+                               atlas_api_private_key, user)
         if response.get('error') is None:
             module.exit_json(changed=True, user=response)
         else:
@@ -252,16 +254,16 @@ def main():
         # cannot get the password though the API to compare it for change
         if update_password == 'always' and password is not None:
             response = sync_user(atlas_group_id=atlas_group_id,
-                                 atlas_username=atlas_username,
-                                 atlas_api_key=atlas_api_key,
+                                 atlas_api_public_key=atlas_api_public_key,
+                                 atlas_api_private_key=atlas_api_private_key,
                                  user=user, http_response=subject_response,
                                  roles=roles,
                                  password=password)
         # Not going to update the password
         else:
             response = sync_user(atlas_group_id=atlas_group_id,
-                                 atlas_username=atlas_username,
-                                 atlas_api_key=atlas_api_key,
+                                 atlas_api_public_key=atlas_api_public_key,
+                                 atlas_api_private_key=atlas_api_private_key,
                                  roles=roles,
                                  user=user, http_response=subject_response,
                                  password=None)

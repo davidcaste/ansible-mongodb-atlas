@@ -8,8 +8,8 @@ Create a config file for your atlas credentials (~/.atlas.ini):
 
 ```ini
 [atlas]
-username=you@email.com
-api_key=abcdef01-2345-6789-abcd-ef0123456789
+api_public_key=abcdefgh
+api_private_key=abcdef01-2345-6789-abcd-ef0123456789
 atlas_group_id=0123456890abcef012345678
 ```
 
@@ -21,8 +21,8 @@ roles/mongodb_atlas/tasks/main.yml:
 - name: create MongoDB Atlas clusters
   with_items: "{{ clusters }}"
   mongo_atlas_cluster:
-    atlas_username: "{{ lookup('ini', 'username section=atlas file=~/.atlas.ini') }}"
-    atlas_api_key: "{{ lookup('ini', 'api_key section=atlas file=~/.atlas.ini') }}"
+    atlas_api_public_key: "{{ lookup('ini', 'api_public_key section=atlas file=~/.atlas.ini') }}"
+    atlas_api_private_key: "{{ lookup('ini', 'api_private_key section=atlas file=~/.atlas.ini') }}"
     atlas_group_id: "{{ lookup('ini', 'atlas_group_id section=atlas file=~/.atlas.ini') }}"
     name: "{{ item.name }}"
     instance_size: "{{ item.size }}"
@@ -33,8 +33,8 @@ roles/mongodb_atlas/tasks/main.yml:
 - name: create MongoDB Atlas users
   with_items: "{{ users }}"
   mongo_atlas_user:
-    atlas_username: "{{ lookup('ini', 'username section=atlas file=~/.atlas.ini') }}"
-    atlas_api_key: "{{ lookup('ini', 'api_key section=atlas file=~/.atlas.ini') }}"
+    atlas_api_public_key: "{{ lookup('ini', 'api_public_key section=atlas file=~/.atlas.ini') }}"
+    atlas_api_private_key: "{{ lookup('ini', 'api_private_key section=atlas file=~/.atlas.ini') }}"
     atlas_group_id: "{{ lookup('ini', 'atlas_group_id section=atlas file=~/.atlas.ini') }}"
     user: "{{ item.user }}"
     state: "{{ item.state }}"

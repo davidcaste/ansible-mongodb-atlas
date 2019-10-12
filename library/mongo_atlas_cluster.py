@@ -4,20 +4,21 @@ import requests
 from requests.auth import HTTPDigestAuth
 
 
-def delete_cluster(atlas_username, atlas_api_key, atlas_group_id, name):
+def delete_cluster(atlas_api_public_key, atlas_api_private_key, atlas_group_id,
+                   name):
     url = "https://cloud.mongodb.com/api/atlas/v1.0/groups/" + atlas_group_id \
         + "/clusters/" + name
-    response = requests.delete(url, auth=HTTPDigestAuth(atlas_username,
-                                                        atlas_api_key))
+    response = requests.delete(url, auth=HTTPDigestAuth(atlas_api_public_key,
+                                                        atlas_api_private_key))
 
     delete_json = response.json()
     response.close()
     return delete_json
 
 
-def create_cluster(atlas_username, atlas_api_key, atlas_group_id, name,
-                   num_shards, replication_factor, instance_size, disk_iops,
-                   encrypt, backup_enabled, region_name, disk_size):
+def create_cluster(atlas_api_public_key, atlas_api_private_key, atlas_group_id,
+                   name, num_shards, replication_factor, instance_size,
+                   disk_iops, encrypt, backup_enabled, region_name, disk_size):
     payload = dict(name=name)
     if backup_enabled is not None:
         payload['backupEnabled'] = backup_enabled
@@ -43,8 +44,8 @@ def create_cluster(atlas_username, atlas_api_key, atlas_group_id, name,
     url = "https://cloud.mongodb.com/api/atlas/v1.0/groups/" + atlas_group_id \
         + "/clusters"
 
-    res = requests.post(url, json=payload, auth=HTTPDigestAuth(atlas_username,
-                                                               atlas_api_key))
+    res = requests.post(url, json=payload, auth=HTTPDigestAuth(atlas_api_public_key,
+                                                               atlas_api_private_key))
 
     post_json = res.json()
     res.close()
@@ -52,11 +53,12 @@ def create_cluster(atlas_username, atlas_api_key, atlas_group_id, name,
     return post_json
 
 
-def get_cluster(atlas_username, atlas_api_key, atlas_group_id, name):
+def get_cluster(atlas_api_public_key, atlas_api_private_key, atlas_group_id,
+                name):
     url = "https://cloud.mongodb.com/api/atlas/v1.0/groups/" + atlas_group_id \
         + "/clusters/" + name
-    response = requests.get(url, auth=HTTPDigestAuth(atlas_username,
-                                                     atlas_api_key))
+    response = requests.get(url, auth=HTTPDigestAuth(atlas_api_public_key,
+                                                     atlas_api_private_key))
     cluster_json = response.json()
     response.close()
     cluster_json['url'] = url
@@ -66,8 +68,9 @@ def get_cluster(atlas_username, atlas_api_key, atlas_group_id, name):
 def main():
     module = AnsibleModule(
             argument_spec=dict(
-                atlas_username=dict(required=True, type='str'),
-                atlas_api_key=dict(required=True, type='str', no_log=True),
+                atlas_api_public_key=dict(required=True, type='str'),
+                atlas_api_private_key=dict(required=True, type='str',
+                                           no_log=True),
                 atlas_group_id=dict(required=True, type='str'),
                 name=dict(required=True, type='str'),
                 num_shards=dict(required=False, type='int', default=1),
@@ -83,8 +86,8 @@ def main():
                 ),
             supports_check_mode=False
             )
-    atlas_username = module.params['atlas_username']
-    atlas_api_key = module.params['atlas_api_key']
+    atlas_api_public_key = module.params['atlas_api_public_key']
+    atlas_api_private_key = module.params['atlas_api_private_key']
     atlas_group_id = module.params['atlas_group_id']
     name = module.params['name']
     num_shards = module.params['num_shards']
@@ -97,8 +100,8 @@ def main():
     state = module.params['state']
     disk_size = module.params['disk_size']
 
-    subject_cluster = get_cluster(atlas_username=atlas_username,
-                                  atlas_api_key=atlas_api_key,
+    subject_cluster = get_cluster(atlas_api_public_key=atlas_api_public_key,
+                                  atlas_api_private_key=atlas_api_private_key,
                                   atlas_group_id=atlas_group_id,
                                   name=name)
 
@@ -112,8 +115,8 @@ def main():
         return
 
     if state == 'present' and subject_state == 'absent':
-        cluster = create_cluster(atlas_username=atlas_username,
-                                 atlas_api_key=atlas_api_key,
+        cluster = create_cluster(atlas_api_public_key=atlas_api_public_key,
+                                 atlas_api_private_key=atlas_api_private_key,
                                  atlas_group_id=atlas_group_id,
                                  name=name,
                                  num_shards=num_shards,
@@ -131,8 +134,8 @@ def main():
         return
 
     if state == 'absent' and subject_state == 'present':
-        cluster = delete_cluster(atlas_username=atlas_username,
-                                 atlas_api_key=atlas_api_key,
+        cluster = delete_cluster(atlas_api_public_key=atlas_api_public_key,
+                                 atlas_api_private_key=atlas_api_private_key,
                                  atlas_group_id=atlas_group_id,
                                  name=name)
         if cluster.get('error') is not None:
