@@ -99,3 +99,11 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# Created by https://www.gitignore.io/api/code
+# Edit at https://www.gitignore.io/?templates=code
+
+### Code ###
+.vscode/*
+
+# End of https://www.gitignore.io/api/code
